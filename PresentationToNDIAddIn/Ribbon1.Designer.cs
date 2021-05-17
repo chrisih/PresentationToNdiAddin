@@ -35,38 +35,86 @@ namespace PresentationToNDIAddIn
     /// </summary>
     private void InitializeComponent()
     {
-      this.tab1 = this.Factory.CreateRibbonTab();
+      this.tabNDI = this.Factory.CreateRibbonTab();
+      this.grpNDI = this.Factory.CreateRibbonGroup();
+      this.chkEnableNDI = this.Factory.CreateRibbonCheckBox();
+      this.chkEnableExport = this.Factory.CreateRibbonCheckBox();
+      this.fps = this.Factory.CreateRibbonEditBox();
+      this.fpsd = this.Factory.CreateRibbonEditBox();
       this.group1 = this.Factory.CreateRibbonGroup();
-      this.tab1.SuspendLayout();
+      this.tabNDI.SuspendLayout();
+      this.grpNDI.SuspendLayout();
+      this.group1.SuspendLayout();
       this.SuspendLayout();
       // 
-      // tab1
+      // tabNDI
       // 
-      this.tab1.ControlId.ControlIdType = Microsoft.Office.Tools.Ribbon.RibbonControlIdType.Office;
-      this.tab1.Groups.Add(this.group1);
-      this.tab1.Label = "TabAddIns";
-      this.tab1.Name = "tab1";
+      this.tabNDI.Groups.Add(this.grpNDI);
+      this.tabNDI.Groups.Add(this.group1);
+      this.tabNDI.Label = "NDI";
+      this.tabNDI.Name = "tabNDI";
+      // 
+      // grpNDI
+      // 
+      this.grpNDI.Items.Add(this.chkEnableNDI);
+      this.grpNDI.Items.Add(this.chkEnableExport);
+      this.grpNDI.Label = "NDI Export";
+      this.grpNDI.Name = "grpNDI";
+      // 
+      // chkEnableNDI
+      // 
+      this.chkEnableNDI.Checked = true;
+      this.chkEnableNDI.Label = "NDI Video (ohne Transparenz)";
+      this.chkEnableNDI.Name = "chkEnableNDI";
+      // 
+      // chkEnableExport
+      // 
+      this.chkEnableExport.Label = "NDI Folien (mit Transparenz)";
+      this.chkEnableExport.Name = "chkEnableExport";
+      // 
+      // fps
+      // 
+      this.fps.Label = "FPS Zähler";
+      this.fps.Name = "fps";
+      this.fps.Text = "30000";
+      // 
+      // fpsd
+      // 
+      this.fpsd.Label = "FPS Nenner";
+      this.fpsd.Name = "fpsd";
+      this.fpsd.Text = "1000";
       // 
       // group1
       // 
-      this.group1.Label = "group1";
+      this.group1.Items.Add(this.fps);
+      this.group1.Items.Add(this.fpsd);
+      this.group1.Label = "NDI Stream Settings";
       this.group1.Name = "group1";
       // 
       // Ribbon1
       // 
       this.Name = "Ribbon1";
       this.RibbonType = "Microsoft.PowerPoint.Presentation";
-      this.Tabs.Add(this.tab1);
+      this.Tabs.Add(this.tabNDI);
       this.Load += new Microsoft.Office.Tools.Ribbon.RibbonUIEventHandler(this.Ribbon1_Load);
-      this.tab1.ResumeLayout(false);
-      this.tab1.PerformLayout();
+      this.tabNDI.ResumeLayout(false);
+      this.tabNDI.PerformLayout();
+      this.grpNDI.ResumeLayout(false);
+      this.grpNDI.PerformLayout();
+      this.group1.ResumeLayout(false);
+      this.group1.PerformLayout();
       this.ResumeLayout(false);
 
     }
 
     #endregion
 
-    internal Microsoft.Office.Tools.Ribbon.RibbonTab tab1;
+    internal Microsoft.Office.Tools.Ribbon.RibbonTab tabNDI;
+    internal Microsoft.Office.Tools.Ribbon.RibbonGroup grpNDI;
+    internal Microsoft.Office.Tools.Ribbon.RibbonCheckBox chkEnableNDI;
+    internal Microsoft.Office.Tools.Ribbon.RibbonCheckBox chkEnableExport;
+    internal Microsoft.Office.Tools.Ribbon.RibbonEditBox fps;
+    internal Microsoft.Office.Tools.Ribbon.RibbonEditBox fpsd;
     internal Microsoft.Office.Tools.Ribbon.RibbonGroup group1;
   }
 

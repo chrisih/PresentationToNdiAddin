@@ -24,7 +24,10 @@
 
 using EvKgHuelben.Helpers.DirectX;
 using EvKgHuelben.Helpers.NDI;
+using EvKgHuelben.Helpers.WindowsRuntime;
+using Microsoft.Office.Interop.PowerPoint;
 using NewTek.NDI;
+using PresentationToNDIAddIn;
 using SharpDX;
 using SharpDX.Direct3D11;
 using SharpDX.DXGI;
@@ -38,8 +41,11 @@ using Windows.Graphics.DirectX.Direct3D11;
 
 namespace EvKgHuelben.Base
 {
-  public abstract class CaptureHelperBase : IDisposable
+  public class PresentationCapturer : IDisposable
   {
+    private float _xOrig;
+    private float _yOrig;
+
     private GraphicsCaptureItem _item;
     private Direct3D11CaptureFramePool _framePool;
     private GraphicsCaptureSession _session;
@@ -53,9 +59,68 @@ namespace EvKgHuelben.Base
     private BlockingCollection<BufferedFrame> _buf = new BlockingCollection<BufferedFrame>();
     protected SizeInt32 _lastSize;
 
-    protected CaptureHelperBase()
+    public PresentationCapturer()
     {
       PixelFormat = DirectXPixelFormat.B8G8R8A8UIntNormalized;
+      Globals.ThisAddIn.Application.PresentationOpen += Application_PresentationOpen;
+      Globals.ThisAddIn.Application.SlideShowBegin += Application_SlideShowBegin;
+      Globals.ThisAddIn.Application.SlideShowEnd += Application_SlideShowEnd;
+    }
+
+    private void Application_PresentationOpen(Presentation Pres)
+    {
+      // NDI stuff
+      _sender = new Sender(Environment.MachineName + " - Capture (" + Pres.Name + ")");
+    }
+
+    private void Application_SlideShowEnd(Presentation Pres)
+    {
+      if (PresentationToNDIAddIn.Properties.Settings.Default.NDIDynamic)
+      {
+        _session.Dispose();
+        _ndiSender.Abort();
+      }
+    }
+
+    private void Application_SlideShowBegin(SlideShowWindow Wn)
+    {
+      if(PresentationToNDIAddIn.Properties.Settings.Default.NDIDynamic)
+      {
+        _xOrig = Wn.Presentation.SlideMaster.Width;
+        _yOrig = Wn.Presentation.SlideMaster.Height;
+
+        var hwnd = new IntPtr(Wn.Application.HWND);
+        _item = CaptureExtensions.CreateItemForWindow(hwnd);
+        _device = Direct3D11Helper.CreateDevice();
+        _d3dDevice = Direct3D11Helper.CreateSharpDXDevice(_device);
+        _framePool = Direct3D11CaptureFramePool.Create(_device, PixelFormat, 2, _item.Size);
+        _framePool.FrameArrived += OnFrameArrived;
+        _session = _framePool.CreateCaptureSession(_item);
+        _session.IsCursorCaptureEnabled = true;
+        _factory = new Factory2();
+
+        var description = new SwapChainDescription1
+        {
+          Width = _item.Size.Width,
+          Height = _item.Size.Height,
+          Format = SharpDxFormat,
+          Stereo = false,
+          SampleDescription = new SampleDescription { Count = 1, Quality = 0 },
+          Usage = Usage.RenderTargetOutput,
+          BufferCount = 2,
+          Scaling = Scaling.Stretch,
+          SwapEffect = SwapEffect.FlipSequential,
+          AlphaMode = AlphaMode.Premultiplied,
+          Flags = SwapChainFlags.None
+        };
+
+        _swapChain = new SwapChain1(_factory, _d3dDevice, ref description);
+
+        _session.StartCapture();
+
+        _ndiSender = new Thread(SendNdi) { Priority = ThreadPriority.Normal, Name = "DynamicNdiSenderThread", IsBackground = true };
+        _ndiSender.Start();
+      }
     }
 
     public DirectXPixelFormat PixelFormat { get; set; }
@@ -72,62 +137,36 @@ namespace EvKgHuelben.Base
       }
     }
 
-    protected void Initialize(GraphicsCaptureItem item)
-    {
-      _item = item;
-      _device = Direct3D11Helper.CreateDevice();
-      _d3dDevice = Direct3D11Helper.CreateSharpDXDevice(_device);
-      _framePool = Direct3D11CaptureFramePool.Create(_device, PixelFormat, 2, _item.Size);
-      _framePool.FrameArrived += OnFrameArrived;
-      _session = _framePool.CreateCaptureSession(_item);
-      _session.IsCursorCaptureEnabled = true;
-      _factory = new Factory2();
-      
-      var description = new SwapChainDescription1 { Width = _item.Size.Width, Height = _item.Size.Height, Format = SharpDxFormat, 
-        Stereo = false, SampleDescription = new SampleDescription { Count = 1, Quality = 0 },
-        Usage = Usage.RenderTargetOutput, BufferCount = 2, Scaling = Scaling.Stretch, SwapEffect = SwapEffect.FlipSequential, 
-        AlphaMode = AlphaMode.Premultiplied, Flags = SwapChainFlags.None
-      };
-
-      _swapChain = new SwapChain1(_factory, _d3dDevice, ref description);
-
-      // NDI stuff
-      _sender = new Sender(_item.DisplayName);    
-      _ndiSender = new Thread(SendNdi) { Priority = ThreadPriority.Normal, Name = "NdiSenderThread", IsBackground = true };
-    }
-
     private void SendNdi()
     {
-      try
+      while (!_disposing)
       {
-        while (!_disposing)
+        try
         {
-          try
+          BufferedFrame frame;
+          if (_buf.TryTake(out frame, 250))
           {
-            BufferedFrame frame;
-            if (_buf.TryTake(out frame, 250))
+            // this drops frames if the UI is rendernig ahead of the specified NDI frame rate
+            while (_buf.Count > 1)
             {
-              // this drops frames if the UI is rendernig ahead of the specified NDI frame rate
-              while (_buf.Count > 1)
-              {
-                frame.Dispose();
-                frame = _buf.Take();
-              }
-
-              using(frame)
-                using (var f = frame.ToVideoFrame())
-                  _sender.Send(f);
+              frame.Dispose();
+              frame = _buf.Take();
             }
-          }
-          catch
-          {
+
+            using(frame)
+              using (var f = frame.ToVideoFrame())
+                _sender.Send(f);
           }
         }
+        catch (ThreadAbortException)
+        {
+          break;
+        }
+        catch { }
       }
-      catch (ThreadAbortException) { }
     }
 
-    ~CaptureHelperBase()
+    ~PresentationCapturer()
     {
       _device?.Dispose();
       _device = null;
@@ -157,22 +196,30 @@ namespace EvKgHuelben.Base
       _ndiSender?.Abort();
     }
 
-    public virtual void StartCapture()
-    {
-      _session.StartCapture();
-      _ndiSender.Start();
-    }
+    public int StreamWidth => _item.Size.Width - CropLeft - CropRight;
+    public int StreamHeight => _item.Size.Height - CropTop - CropBottom;
 
-    protected int StreamWidth => _item.Size.Width - CropLeft - CropRight;
-    protected int StreamHeight => _item.Size.Height - CropTop - CropBottom;
+    private int HeaderHeight => 35;
+    private int FooterHeight => 30;
 
-    protected virtual int CropLeft { get { return 0; } }
+    private float xFact => _lastSize.Width / _xOrig;
 
-    protected virtual int CropRight { get { return 0; } }
+    private float yFact => (_lastSize.Height - HeaderHeight - FooterHeight) / _yOrig;
 
-    protected virtual int CropTop { get { return 0; } }
+    private float Factor => Math.Min(xFact, yFact);
 
-    protected virtual int CropBottom { get { return 0; } }
+    private float DesiredWidth => _xOrig * Factor;
+
+    private float DesiredHeight => _yOrig * Factor;
+
+    public int CropLeft => (int)(_lastSize.Width - DesiredWidth) / 2;
+
+    public int CropRight => (int)(_lastSize.Width - DesiredWidth) / 2;
+
+    public int CropBottom => (int)(_lastSize.Height - DesiredHeight) / 2;
+
+    public int CropTop => (int)(_lastSize.Height - DesiredHeight) / 2;
+
 
     protected ResourceRegion ROI => new ResourceRegion { Left = CropLeft, Right = _item.Size.Width - CropRight, Top = CropTop, Bottom = _item.Size.Height - CropBottom, Front = 0, Back = 1 };
 

@@ -1,38 +1,29 @@
-﻿using PowerPoint = Microsoft.Office.Interop.PowerPoint;
-using EvKgHuelben.Base;
+﻿using EvKgHuelben.Base;
+using Microsoft.Office.Tools.Ribbon;
 
 namespace PresentationToNDIAddIn
 {
   public partial class ThisAddIn
   {
-    private PresentationCapturer _capture;
+    private PresentationCapturer _dc;
+    private StaticCapturer _sc;
+
+    protected override IRibbonExtension[] CreateRibbonObjects()
+    {
+      return new IRibbonExtension[] { new Ribbon1() };
+    }
 
     private void ThisAddIn_Startup(object sender, System.EventArgs e)
     {
-      Application.SlideShowBegin += Application_SlideShowBegin;
-      Application.SlideShowOnNext += Application_SlideShowOnNext;
-      Application.SlideShowEnd += Application_SlideShowEnd;
+      _dc = new PresentationCapturer();
+      _sc = new StaticCapturer();
     }
 
-    private void Application_SlideShowOnNext(PowerPoint.SlideShowWindow Wn)
-    {
-    }
-
-    private void Application_SlideShowEnd(PowerPoint.Presentation Pres)
-    {
-      _capture?.Dispose();
-    }
-
-    private void Application_SlideShowBegin(PowerPoint.SlideShowWindow Wn)
-    {
-      _capture = new PresentationCapturer(Wn);
-      _capture.StartCapture();
-    }
 
     private void ThisAddIn_Shutdown(object sender, System.EventArgs e)
     {
-      Application.SlideShowBegin -= Application_SlideShowBegin;
-      Application.SlideShowEnd -= Application_SlideShowEnd;
+      _dc.Dispose();
+      _sc.Dispose();
     }
 
     #region Von VSTO generierter Code
