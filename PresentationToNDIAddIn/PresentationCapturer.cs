@@ -23,6 +23,7 @@
 //  ---------------------------------------------------------------------------------
 
 using EvKgHuelben.Helpers.DirectX;
+using EvKgHuelben.Helpers.Interop;
 using EvKgHuelben.Helpers.NDI;
 using EvKgHuelben.Helpers.WindowsRuntime;
 using Microsoft.Office.Interop.PowerPoint;
@@ -45,7 +46,9 @@ namespace EvKgHuelben.Base
   {
     private float _xOrig;
     private float _yOrig;
+    private bool _wasFullscreenBefore;
 
+    private SlideShowWindow _window;
     private GraphicsCaptureItem _item;
     private Direct3D11CaptureFramePool _framePool;
     private GraphicsCaptureSession _session;
@@ -84,43 +87,83 @@ namespace EvKgHuelben.Base
 
     private void Application_SlideShowBegin(SlideShowWindow Wn)
     {
-      if(PresentationToNDIAddIn.Properties.Settings.Default.NDIDynamic)
+      if (!PresentationToNDIAddIn.Properties.Settings.Default.NDIDynamic)
+        return;
+
+      _window = Wn;
+      _wasFullscreenBefore = IsFullscreen;
+      _xOrig = Wn.Presentation.SlideMaster.Width;
+      _yOrig = Wn.Presentation.SlideMaster.Height;
+
+      _device = Direct3D11Helper.CreateDevice(!PresentationToNDIAddIn.Properties.Settings.Default.UseHw);
+      _d3dDevice = Direct3D11Helper.CreateSharpDXDevice(_device);
+      _factory = new Factory2();
+
+      _item = GetItem();
+      CreateCaptureItemDependendStuff();
+
+      _ndiSender = new Thread(SendNdi) { Priority = ThreadPriority.Normal, Name = "DynamicNdiSenderThread", IsBackground = true };
+      _ndiSender.Start();
+    }
+
+    private GraphicsCaptureItem GetItem()
+    {
+      var hwnd = new IntPtr(_window.Application.HWND);
+
+      if (_window.IsFullScreen == Microsoft.Office.Core.MsoTriState.msoTrue)
       {
-        _xOrig = Wn.Presentation.SlideMaster.Width;
-        _yOrig = Wn.Presentation.SlideMaster.Height;
-
-        var hwnd = new IntPtr(Wn.Application.HWND);
-        _item = CaptureExtensions.CreateItemForWindow(hwnd);
-        _device = Direct3D11Helper.CreateDevice();
-        _d3dDevice = Direct3D11Helper.CreateSharpDXDevice(_device);
-        _framePool = Direct3D11CaptureFramePool.Create(_device, PixelFormat, 2, _item.Size);
-        _framePool.FrameArrived += OnFrameArrived;
-        _session = _framePool.CreateCaptureSession(_item);
-        _session.IsCursorCaptureEnabled = true;
-        _factory = new Factory2();
-
-        var description = new SwapChainDescription1
-        {
-          Width = _item.Size.Width,
-          Height = _item.Size.Height,
-          Format = SharpDxFormat,
-          Stereo = false,
-          SampleDescription = new SampleDescription { Count = 1, Quality = 0 },
-          Usage = Usage.RenderTargetOutput,
-          BufferCount = 2,
-          Scaling = Scaling.Stretch,
-          SwapEffect = SwapEffect.FlipSequential,
-          AlphaMode = AlphaMode.Premultiplied,
-          Flags = SwapChainFlags.None
-        };
-
-        _swapChain = new SwapChain1(_factory, _d3dDevice, ref description);
-
-        _session.StartCapture();
-
-        _ndiSender = new Thread(SendNdi) { Priority = ThreadPriority.Normal, Name = "DynamicNdiSenderThread", IsBackground = true };
-        _ndiSender.Start();
+        var mhwnd = NativeHelpers.GetMonitorForWindow(hwnd);
+        return CaptureExtensions.CreateItemForMonitor(mhwnd);
       }
+      else
+      {
+        return CaptureExtensions.CreateItemForWindow(hwnd);
+      }
+    }
+
+    private void DisposeCaptureItemDependentStuff()
+    {
+      if (_framePool != null)
+      {
+        _framePool.FrameArrived -= OnFrameArrived;
+        _framePool.Dispose();
+      }
+
+      if (_session != null)
+      {
+        _session.Dispose();
+      }
+
+      if(_swapChain != null)
+      {
+        _swapChain.Dispose();
+      }
+    }
+
+    private void CreateCaptureItemDependendStuff()
+    {
+      _framePool = Direct3D11CaptureFramePool.Create(_device, PixelFormat, 2, _item.Size);
+      _framePool.FrameArrived += OnFrameArrived;
+      _session = _framePool.CreateCaptureSession(_item);
+      _session.IsCursorCaptureEnabled = !PresentationToNDIAddIn.Properties.Settings.Default.HideMouse;
+
+      var description = new SwapChainDescription1
+      {
+        Width = _item.Size.Width,
+        Height = _item.Size.Height,
+        Format = SharpDxFormat,
+        Stereo = false,
+        SampleDescription = new SampleDescription { Count = 1, Quality = 0 },
+        Usage = Usage.RenderTargetOutput,
+        BufferCount = 2,
+        Scaling = Scaling.Stretch,
+        SwapEffect = SwapEffect.FlipSequential,
+        AlphaMode = AlphaMode.Premultiplied,
+        Flags = SwapChainFlags.None
+      };
+
+      _swapChain = new SwapChain1(_factory, _d3dDevice, ref description);
+      _session.StartCapture();
     }
 
     public DirectXPixelFormat PixelFormat { get; set; }
@@ -277,6 +320,8 @@ namespace EvKgHuelben.Base
       }
     }
 
+    private bool IsFullscreen => _window.IsFullScreen == Microsoft.Office.Core.MsoTriState.msoTrue;
+
     protected virtual void ResetFramePool(SizeInt32 size, bool recreateDevice)
     {
       do
@@ -285,10 +330,8 @@ namespace EvKgHuelben.Base
         {
           if (recreateDevice)
           {
-            _device = Direct3D11Helper.CreateDevice();
+            _device = Direct3D11Helper.CreateDevice(!PresentationToNDIAddIn.Properties.Settings.Default.UseHw);
           }
-
-          _framePool.Recreate(_device, PixelFormat, 2, size);
         }
         catch
         {
@@ -296,6 +339,19 @@ namespace EvKgHuelben.Base
           recreateDevice = true;
         }
       } while (_device == null);
+
+      // detect change from or to fullscreen --> captureItem needs to be recreated
+      if((_wasFullscreenBefore && !IsFullscreen) || (!_wasFullscreenBefore && IsFullscreen))
+      {
+        _wasFullscreenBefore = IsFullscreen;
+        DisposeCaptureItemDependentStuff();
+        _item = GetItem();
+        CreateCaptureItemDependendStuff();
+      }
+      else
+      {
+        _framePool.Recreate(_device, PixelFormat, 2, size);
+      }
     }
   }
 }

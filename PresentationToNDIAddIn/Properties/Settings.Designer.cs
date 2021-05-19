@@ -70,5 +70,29 @@ namespace PresentationToNDIAddIn.Properties {
                 this["NDIDynamic"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool UseHw {
+            get {
+                return ((bool)(this["UseHw"]));
+            }
+            set {
+                this["UseHw"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool HideMouse {
+            get {
+                return ((bool)(this["HideMouse"]));
+            }
+            set {
+                this["HideMouse"] = value;
+            }
+        }
     }
 }

@@ -39,18 +39,23 @@ namespace PresentationToNDIAddIn
       this.grpNDI = this.Factory.CreateRibbonGroup();
       this.chkEnableNDI = this.Factory.CreateRibbonCheckBox();
       this.chkEnableExport = this.Factory.CreateRibbonCheckBox();
+      this.group1 = this.Factory.CreateRibbonGroup();
       this.fps = this.Factory.CreateRibbonEditBox();
       this.fpsd = this.Factory.CreateRibbonEditBox();
-      this.group1 = this.Factory.CreateRibbonGroup();
+      this.group2 = this.Factory.CreateRibbonGroup();
+      this.chkHw = this.Factory.CreateRibbonCheckBox();
+      this.chkMouse = this.Factory.CreateRibbonCheckBox();
       this.tabNDI.SuspendLayout();
       this.grpNDI.SuspendLayout();
       this.group1.SuspendLayout();
+      this.group2.SuspendLayout();
       this.SuspendLayout();
       // 
       // tabNDI
       // 
       this.tabNDI.Groups.Add(this.grpNDI);
       this.tabNDI.Groups.Add(this.group1);
+      this.tabNDI.Groups.Add(this.group2);
       this.tabNDI.Label = "NDI";
       this.tabNDI.Name = "tabNDI";
       // 
@@ -72,6 +77,13 @@ namespace PresentationToNDIAddIn
       this.chkEnableExport.Label = "NDI Folien (mit Transparenz)";
       this.chkEnableExport.Name = "chkEnableExport";
       // 
+      // group1
+      // 
+      this.group1.Items.Add(this.fps);
+      this.group1.Items.Add(this.fpsd);
+      this.group1.Label = "NDI Stream Settings";
+      this.group1.Name = "group1";
+      // 
       // fps
       // 
       this.fps.Label = "FPS Zähler";
@@ -84,12 +96,22 @@ namespace PresentationToNDIAddIn
       this.fpsd.Name = "fpsd";
       this.fpsd.Text = "1000";
       // 
-      // group1
+      // group2
       // 
-      this.group1.Items.Add(this.fps);
-      this.group1.Items.Add(this.fpsd);
-      this.group1.Label = "NDI Stream Settings";
-      this.group1.Name = "group1";
+      this.group2.Items.Add(this.chkHw);
+      this.group2.Items.Add(this.chkMouse);
+      this.group2.Label = "DirectX Settings";
+      this.group2.Name = "group2";
+      // 
+      // chkHw
+      // 
+      this.chkHw.Label = "Hardwarebeschleunigung";
+      this.chkHw.Name = "chkHw";
+      // 
+      // chkMouse
+      // 
+      this.chkMouse.Label = "Maus ausblenden";
+      this.chkMouse.Name = "chkMouse";
       // 
       // Ribbon1
       // 
@@ -103,6 +125,8 @@ namespace PresentationToNDIAddIn
       this.grpNDI.PerformLayout();
       this.group1.ResumeLayout(false);
       this.group1.PerformLayout();
+      this.group2.ResumeLayout(false);
+      this.group2.PerformLayout();
       this.ResumeLayout(false);
 
     }
@@ -116,6 +140,9 @@ namespace PresentationToNDIAddIn
     internal Microsoft.Office.Tools.Ribbon.RibbonEditBox fps;
     internal Microsoft.Office.Tools.Ribbon.RibbonEditBox fpsd;
     internal Microsoft.Office.Tools.Ribbon.RibbonGroup group1;
+    internal Microsoft.Office.Tools.Ribbon.RibbonGroup group2;
+    internal Microsoft.Office.Tools.Ribbon.RibbonCheckBox chkHw;
+    internal Microsoft.Office.Tools.Ribbon.RibbonCheckBox chkMouse;
   }
 
   partial class ThisRibbonCollection

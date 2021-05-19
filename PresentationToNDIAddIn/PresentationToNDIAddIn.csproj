@@ -187,7 +187,7 @@
   <ItemGroup>
     <Compile Include="BufferedFrame.cs" />
     <Compile Include="CaptureExtensions.cs" />
-    <Compile Include="CaptureHelperBase.cs" />
+    <Compile Include="PresentationCapturer.cs" />
     <Compile Include="Direct3D11Helper.cs" />
     <Compile Include="NativeHelpers.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">

@@ -18,6 +18,26 @@ namespace PresentationToNDIAddIn
 
       fpsd.Text = Properties.Settings.Default.FPS_Nenner.ToString(CultureInfo.InvariantCulture);
       fpsd.TextChanged += Fpsd_TextChanged;
+
+      chkMouse.Checked = Properties.Settings.Default.HideMouse;
+      chkMouse.Click += ChkMouse_Click;
+
+      chkHw.Checked = Properties.Settings.Default.UseHw;
+      chkHw.Click += ChkHw_Click;
+    }
+
+    private void ChkHw_Click(object sender, RibbonControlEventArgs e)
+    {
+      var rcb = e.Control as RibbonCheckBox;
+      Properties.Settings.Default.UseHw = rcb.Checked;
+      Properties.Settings.Default.Save();
+    }
+
+    private void ChkMouse_Click(object sender, RibbonControlEventArgs e)
+    {
+      var rcb = e.Control as RibbonCheckBox;
+      Properties.Settings.Default.HideMouse = rcb.Checked;
+      Properties.Settings.Default.Save();
     }
 
     private void Fpsd_TextChanged(object sender, RibbonControlEventArgs e)

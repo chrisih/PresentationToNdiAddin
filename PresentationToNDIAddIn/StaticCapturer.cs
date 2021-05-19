@@ -2,10 +2,6 @@
 using Microsoft.Office.Interop.PowerPoint;
 using NewTek.NDI;
 using System;
-using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
-using System.IO;
 using System.Threading;
 
 namespace PresentationToNDIAddIn
@@ -75,6 +71,7 @@ namespace PresentationToNDIAddIn
         }
         catch (ThreadAbortException)
         { break; }
+        catch { }
 
         Thread.Sleep(200);
       }
@@ -97,45 +94,6 @@ namespace PresentationToNDIAddIn
       Globals.ThisAddIn.Application.PresentationOpen -= Application_PresentationOpen;
       Globals.ThisAddIn.Application.SlideShowBegin -= Application_SlideShowBegin;
       Globals.ThisAddIn.Application.SlideShowEnd -= Application_SlideShowEnd;
-    }
-
-    private Bitmap ToImage(Slide s)
-    {
-      var setup = (s.Parent as Presentation).PageSetup;
-      var image = new Bitmap((int)setup.SlideWidth, (int)setup.SlideHeight);
-
-      using (var g = Graphics.FromImage(image))
-      {
-        g.Clear(Color.Transparent);
-        g.CompositingMode = CompositingMode.SourceOver;
-        g.CompositingQuality = CompositingQuality.HighQuality;
-        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-        g.SmoothingMode = SmoothingMode.HighQuality;
-        g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-
-        foreach (Shape shape in s.Shapes)
-        {
-          var tmpfile = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".png");
-          shape.Export(tmpfile, PpShapeFormat.ppShapeFormatPNG, 0, 0, PpExportMode.ppClipRelativeToSlide);
-          using (var i = Image.FromFile(tmpfile))
-          {
-            var rect = new Rectangle((int)shape.Left, (int)shape.Top, (int)shape.Width + 16, (int)shape.Height + 4);
-            using (var wrapMode = new ImageAttributes())
-            {
-              wrapMode.SetWrapMode(WrapMode.TileFlipXY);
-              g.DrawImage(i, rect, 16, 4, i.Width, i.Height, GraphicsUnit.Pixel, wrapMode);
-            }
-          }
-          try
-          {
-            File.Delete(tmpfile);
-          }
-          catch { }
-        }
-        g.Flush();
-      }
-
-      return image;
     }
   }
 }
