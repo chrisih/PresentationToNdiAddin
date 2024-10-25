@@ -59,29 +59,23 @@ namespace EvKgHuelben.Base
     private Factory2 _factory;
     private Thread _ndiSender;
     private bool _disposing = false;
-    private BlockingCollection<BufferedFrame> _buf = new BlockingCollection<BufferedFrame>();
+    private readonly BlockingCollection<BufferedFrameBase> _buf = new BlockingCollection<BufferedFrameBase>();
     protected SizeInt32 _lastSize;
 
     public PresentationCapturer()
     {
       PixelFormat = DirectXPixelFormat.B8G8R8A8UIntNormalized;
-      Globals.ThisAddIn.Application.PresentationOpen += Application_PresentationOpen;
       Globals.ThisAddIn.Application.SlideShowBegin += Application_SlideShowBegin;
       Globals.ThisAddIn.Application.SlideShowEnd += Application_SlideShowEnd;
     }
-
-    private void Application_PresentationOpen(Presentation Pres)
-    {
-      // NDI stuff
-      _sender = new Sender(Environment.MachineName + " - Capture (" + Pres.Name + ")");
-    }
-
+    
     private void Application_SlideShowEnd(Presentation Pres)
     {
       if (PresentationToNDIAddIn.Properties.Settings.Default.NDIDynamic)
       {
         _session.Dispose();
         _ndiSender.Abort();
+        _sender.Dispose();
       }
     }
 
@@ -89,6 +83,8 @@ namespace EvKgHuelben.Base
     {
       if (!PresentationToNDIAddIn.Properties.Settings.Default.NDIDynamic)
         return;
+
+      _sender = new Sender(Environment.MachineName + " - Capture (" + Wn.Presentation.Name + ")");
 
       _window = Wn;
       _wasFullscreenBefore = IsFullscreen;
@@ -186,8 +182,7 @@ namespace EvKgHuelben.Base
       {
         try
         {
-          BufferedFrame frame;
-          if (_buf.TryTake(out frame, 250))
+          if (_buf.TryTake(out var frame, 250))
           {
             // this drops frames if the UI is rendernig ahead of the specified NDI frame rate
             while (_buf.Count > 1)
@@ -300,7 +295,7 @@ namespace EvKgHuelben.Base
 
                 // access the copied data in a stream
                 _d3dDevice.ImmediateContext.MapSubresource(copy, 0, 0, MapMode.Read, SharpDX.Direct3D11.MapFlags.None, out DataStream stream);
-                _buf.Add(new BufferedFrame(stream, new SizeInt32 { Width = width, Height = height }, bitmap.Description.Format));
+                _buf.Add(new BufferedVideoFrame(stream, new SizeInt32 { Width = width, Height = height }, bitmap.Description.Format));
                 _d3dDevice.ImmediateContext.UnmapSubresource(copy, 0);
               }
             }

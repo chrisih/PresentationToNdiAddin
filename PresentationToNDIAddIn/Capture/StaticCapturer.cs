@@ -51,6 +51,7 @@ namespace PresentationToNDIAddIn
         catch { }
       }
 
+      _lastIndex = -1;
       _window = null;
     }
 
@@ -63,7 +64,8 @@ namespace PresentationToNDIAddIn
           if (_window.View.Slide.SlideIndex != _lastIndex)
           {
             _currentFrame?.Dispose();
-            _currentFrame = new BufferedFrame(Globals.ThisAddIn.Application.ActivePresentation.Slides[_window.View.Slide.SlideIndex]).ToVideoFrame();
+            _currentFrame = new BufferedSlideFrame(Globals.ThisAddIn.Application.ActivePresentation.Slides[_window.View.Slide.SlideIndex]).ToVideoFrame();
+            _lastIndex = _window.View.Slide.SlideIndex;
           }
 
           _sender.Send(_currentFrame);
